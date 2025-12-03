@@ -7,13 +7,30 @@
 # Objective: E-commerce fraud detection using multiclass classification
 #            (Legitimate, Suspicious, Fraudulent)
 #
-# Methodology:
-#   - 4 ML Algorithms: ANNs (8 topologies), SVMs (10 configs), 
-#                      Decision Trees (7 depths), kNN (6 k values)
+# Methodology: Three different approaches as required by the assignment:
+#
+#   APPROACH 1: Real Dataset with 80/20 Split
+#       - Standard train/test split: 80% train, 20% test
+#       - All features used
+#
+#   APPROACH 2: Real Dataset with 50/50 Split  
+#       - Balanced train/test split: 50% train, 50% test
+#       - Tests generalization with less training data
+#
+#   APPROACH 3: PCA Dimensionality Reduction with 80/20 Split
+#       - Principal Component Analysis applied
+#       - Reduces features to optimal number of components
+#       - Tests if dimensionality reduction improves performance
+#
+# For each approach:
+#   - 4 ML Algorithms tested:
+#       * ANNs: 8 topologies (1-2 hidden layers)
+#       * SVMs: 8 configurations (different kernels and C values)  
+#       * Decision Trees: 6 maximum depths
+#       * kNN: 6 different k values
 #   - Ensemble Methods: Majority Voting + Weighted Voting
-#   - Dataset: 1.5M e-commerce transactions → 3-class risk assessment
 #   - Cross-Validation: 3-fold stratified on training set
-#   - Evaluation: Hold-out test set (20%)
+#   - Final evaluation on hold-out test set
 #
 # Code Organization:
 #   /project/
@@ -26,7 +43,7 @@
 #
 # ============================================================================
 
-# Set random seed for reproducibility
+# Set random seed for reproducibility (REQUIRED by assignment)
 using Random
 Random.seed!(42)
 
@@ -39,14 +56,15 @@ using DataFrames
 using Statistics
 using Dates
 using StatsBase
+using LinearAlgebra  # For PCA
 
 println("✅ Packages loaded!")
 
-# Load course utilities
+# Load course utilities (contains modelCrossValidation, confusionMatrix, etc.)
 include("utils/utils.jl")
 println("✅ Course utilities loaded (includes modelCrossValidation, confusionMatrix, etc.)")
 
-# Load custom preprocessing
+# Load custom preprocessing utilities
 include("utils/preprocessing.jl")
 using .PreprocessingUtils: create_risk_classes, preprocess_multiclass
 println("✅ Custom preprocessing utilities loaded!")
@@ -205,8 +223,8 @@ println("\n✅ Cross-validation indices created ($k_folds folds, stratified)")
 # ============================================================================
 #
 # Configuration:
-#   - Topologies tested: 8 architectures (1-4 hidden layers)
-#   - Activation: ReLU (hidden layers), Softmax (output)
+#   - Topologies tested: 8 architectures (1-2 hidden layers as required)
+#   - Activation: σ (sigmoid) for hidden layers, Softmax for output
 #   - Optimizer: Adam (learning rate: 0.003)
 #   - Loss: Cross-entropy
 #   - Regularization: Early stopping (patience: 25 epochs)
@@ -214,20 +232,20 @@ println("\n✅ Cross-validation indices created ($k_folds folds, stratified)")
 #   - Executions: 1 per topology (can increase for stability)
 #
 # Architectures:
-#   1. [256, 128, 64] - Deep Large
-#   2. [128, 64, 32] - Baseline
-#   3. [96, 48, 24] - Medium
-#   4. [64, 32] - Shallow
-#   5. [128, 128, 64, 32] - Very Deep
-#   6. [192, 96, 48] - Wide-Deep
-#   7. [128, 64] - Simple
-#   8. [256, 128] - Large 2-Layer
+#   1. [256] - 1 hidden layer, Large
+#   2. [128] - 1 hidden layer, Medium
+#   3. [64] - 1 hidden layer, Small
+#   4. [32] - 1 hidden layer, Tiny
+#   5. [256, 128] - 2 hidden layers, Large
+#   6. [128, 64] - 2 hidden layers, Medium
+#   7. [64, 32] - 2 hidden layers, Small
+#   8. [96, 48] - 2 hidden layers, Alternative
 #
 # ============================================================================
 
 println("\n" * "="^70)
 println("🔬 EXPERIMENT 1: ARTIFICIAL NEURAL NETWORKS")
-println("Testing 8 ANN Topologies")
+println("Testing 8 ANN Topologies (1-2 hidden layers)")
 println("="^70)
 
 topologies_to_test = [
@@ -327,42 +345,39 @@ printConfusionMatrix(test_outputs_ann, test_targets_onehot; weighted=true)
 # ============================================================================
 #
 # Configuration:
-#   - 10 configurations tested
+#   - 8 configurations tested (as required by assignment)
 #   - Kernels: Linear, RBF, Polynomial
 #   - Hyperparameter C: 0.1, 1.0, 10.0
-#   - Gamma (RBF): auto (1/n_features = 0.125), 0.1
+#   - Gamma (RBF): auto (1/n_features = 0.125)
 #   - Degree (Polynomial): 2, 3
 #
 # Configurations:
-#   1-3. Linear (C = 0.1, 1.0, 10.0)
-#   4-6. RBF with auto gamma (C = 0.1, 1.0, 10.0)
-#   7. RBF with γ=0.1 (C = 1.0)
-#   8-10. Polynomial degree 2, 3 (C = 1.0, 10.0)
+#   1-2. Linear (C = 1.0, 10.0)
+#   3-5. RBF with different C values (C = 0.1, 1.0, 10.0)
+#   6-8. Polynomial with different degrees (deg = 2, 3)
 #
 # ============================================================================
 
 println("\n" * "="^70)
 println("🔬 EXPERIMENT 2: SUPPORT VECTOR MACHINES")
-println("Testing 10 SVM Configurations")
+println("Testing 8 SVM Configurations")
 println("="^70)
 
 svm_configs = [
-    ("linear", 0.1, 0.125, 3, "Linear C=0.1"),
-    ("linear", 1.0, 0.125, 3, "Linear C=1.0"),
-    ("linear", 10.0, 0.125, 3, "Linear C=10.0"),
-    ("rbf", 0.1, 0.125, 3, "RBF C=0.1 γ=auto"),
-    ("rbf", 1.0, 0.125, 3, "RBF C=1.0 γ=auto"),
-    ("rbf", 10.0, 0.125, 3, "RBF C=10.0 γ=auto"),
-    ("rbf", 1.0, 0.1, 3, "RBF C=1.0 γ=0.1"),
-    ("poly", 1.0, 0.125, 2, "Poly C=1.0 deg=2"),
-    ("poly", 1.0, 0.125, 3, "Poly C=1.0 deg=3"),
-    ("poly", 10.0, 0.125, 2, "Poly C=10.0 deg=2")
+    ("linear", 1.0, 0.125, 3, "Linear C=1.0"),           # 1
+    ("linear", 10.0, 0.125, 3, "Linear C=10.0"),         # 2
+    ("rbf", 0.1, 0.125, 3, "RBF C=0.1 γ=auto"),          # 3
+    ("rbf", 1.0, 0.125, 3, "RBF C=1.0 γ=auto"),          # 4
+    ("rbf", 10.0, 0.125, 3, "RBF C=10.0 γ=auto"),        # 5
+    ("poly", 1.0, 0.125, 2, "Poly C=1.0 deg=2"),         # 6
+    ("poly", 1.0, 0.125, 3, "Poly C=1.0 deg=3"),         # 7
+    ("poly", 10.0, 0.125, 2, "Poly C=10.0 deg=2")        # 8
 ]
 
 svm_results = []
 
 for (i, (kernel, C, gamma, degree, desc)) in enumerate(svm_configs)
-    println("\n[$i/10] Testing: $desc")
+    println("\n[$i/8] Testing: $desc")
     
     hyperparams = Dict(
         "kernel" => kernel,
@@ -447,7 +462,7 @@ println("F1 Score:  $(round(cm_results_svm.aggregated.f1*100, digits=2))%")
 # ============================================================================
 #
 # Configuration:
-#   - 7 maximum depths tested: 3, 5, 7, 10, 15, 20, unlimited
+#   - 6 maximum depths tested (as required by assignment)
 #   - Splitting criterion: Gini impurity
 #   - Min samples split: 2
 #   - Random seed: 42 (for reproducibility)
@@ -462,15 +477,15 @@ println("F1 Score:  $(round(cm_results_svm.aggregated.f1*100, digits=2))%")
 
 println("\n" * "="^70)
 println("🔬 EXPERIMENT 3: DECISION TREES")
-println("Testing 7 Maximum Depths")
+println("Testing 6 Maximum Depths")
 println("="^70)
 
-tree_depths = [3, 5, 7, 10, 15, 20, -1]
+tree_depths = [3, 5, 7, 10, 15, -1]  # 6 depths: 3, 5, 7, 10, 15, unlimited
 tree_results = []
 
 for (i, max_depth) in enumerate(tree_depths)
     depth_str = max_depth == -1 ? "Unlimited" : string(max_depth)
-    println("\n[$i/7] Testing: Depth=$depth_str")
+    println("\n[$i/6] Testing: Depth=$depth_str")
     
     hyperparams = Dict("max_depth" => max_depth)
     
@@ -718,7 +733,7 @@ println("✅ Weighted Voting - F1: $(round(cm_results_weighted.aggregated.f1*100
 # ============================================================================
 
 println("\n" * "="^70)
-println("📊 FINAL RESULTS - ALL APPROACHES COMPARISON")
+println("📊 APPROACH 1 RESULTS - 80/20 SPLIT")
 println("="^70)
 
 println("\n🏆 TEST SET PERFORMANCE RANKING:")
@@ -734,32 +749,661 @@ println("5.   | Ensemble (Majority)     | $(rpad(round(cm_results_majority.aggre
 println("6.   | Ensemble (Weighted)     | $(rpad(round(cm_results_weighted.aggregated.f1*100, digits=2), 7))% | $(round(cm_results_weighted.accuracy*100, digits=2))%")
 println("="^70)
 
-# Determine overall best
-all_f1_scores = [
-    ("ANN", cm_results_ann.aggregated.f1),
-    ("Decision Tree", cm_results_tree.aggregated.f1),
-    ("kNN", cm_results_knn.aggregated.f1),
-    ("SVM", cm_results_svm.aggregated.f1),
-    ("Ensemble Majority", cm_results_majority.aggregated.f1),
-    ("Ensemble Weighted", cm_results_weighted.aggregated.f1)
-]
-best_overall = sort(all_f1_scores, by=x->x[2], rev=true)[1]
+# Store Approach 1 results
+approach1_results = Dict(
+    "split" => "80/20",
+    "ann" => (best_topology_ann, cm_results_ann.aggregated.f1, cm_results_ann.accuracy),
+    "svm" => (best_desc_svm, cm_results_svm.aggregated.f1, cm_results_svm.accuracy),
+    "tree" => (best_desc_tree, cm_results_tree.aggregated.f1, cm_results_tree.accuracy),
+    "knn" => (best_k_knn, cm_results_knn.aggregated.f1, cm_results_knn.accuracy),
+    "ensemble_majority" => (cm_results_majority.aggregated.f1, cm_results_majority.accuracy),
+    "ensemble_weighted" => (cm_results_weighted.aggregated.f1, cm_results_weighted.accuracy)
+)
 
-println("\n🎯 BEST OVERALL APPROACH: $(best_overall[1])")
-println("   Test F1 Score: $(round(best_overall[2]*100, digits=2))%")
+# ############################################################################
+#
+#                         APPROACH 2: 50/50 SPLIT
+#
+# ############################################################################
+#
+# This approach tests the models with a balanced 50/50 train/test split.
+# The goal is to test generalization with less training data.
+#
+# ############################################################################
+
+println("\n")
+println("="^80)
+println("="^80)
+println("                    APPROACH 2: 50/50 TRAIN/TEST SPLIT")
+println("="^80)
+println("="^80)
+
+# Re-seed for reproducibility
+Random.seed!(42)
+
+# Use the same balanced dataset but with 50/50 split
+println("\n" * "="^70)
+println("✅ APPROACH 2: TRAIN/TEST SPLIT (50% Train / 50% Test)")
+println("="^70)
+
+n_train_50 = floor(Int, n_total * 0.50)
+n_test_50 = n_total - n_train_50
+
+all_indices_50 = shuffle(1:n_total)
+train_indices_50 = all_indices_50[1:n_train_50]
+test_indices_50 = all_indices_50[n_train_50+1:end]
+
+df_train_50 = df_balanced[train_indices_50, :]
+df_test_50 = df_balanced[test_indices_50, :]
+
+println("\n📊 Split Summary (Approach 2):")
+println("  Total samples:     $n_total")
+println("  Training set:      $n_train_50 (50%)")
+println("  Test set:          $n_test_50 (50%)")
+
+# Preprocess
+println("\n🔧 Preprocessing train and test sets (Approach 2)...")
+df_train_50_processed = preprocess_multiclass(df_train_50, target_col)
+df_test_50_processed = preprocess_multiclass(df_test_50, target_col)
+
+input_cols_50 = setdiff(names(df_train_50_processed), ["Risk_Class"])
+train_inputs_50 = Matrix{Float64}(df_train_50_processed[:, input_cols_50])
+train_targets_50 = Int.(df_train_50_processed.Risk_Class)
+
+test_inputs_50 = Matrix{Float64}(df_test_50_processed[:, input_cols_50])
+test_targets_50 = Int.(df_test_50_processed.Risk_Class)
+
+# Create cross-validation indices
+cv_indices_50 = crossvalidation(train_targets_50, k_folds)
+println("✅ Cross-validation indices created ($k_folds folds, stratified)")
+
+# ============================================================================
+# APPROACH 2: ANN (8 topologies)
+# ============================================================================
+println("\n" * "="^70)
+println("🔬 APPROACH 2 - EXPERIMENT 1: ARTIFICIAL NEURAL NETWORKS")
+println("Testing 8 ANN Topologies")
+println("="^70)
+
+ann_results_50 = []
+for (i, topology) in enumerate(topologies_to_test)
+    println("\n[$i/8] Testing topology: $topology")
+    
+    hyperparams = Dict(
+        "topology" => topology,
+        "learningRate" => 0.003,
+        "validationRatio" => 0.1,
+        "numExecutions" => 1,
+        "maxEpochs" => 800,
+        "maxEpochsVal" => 25
+    )
+    
+    results = modelCrossValidation(:ANN, hyperparams, (train_inputs_50, train_targets_50), cv_indices_50)
+    acc_stats, err_stats, sens_stats, spec_stats, ppv_stats, npv_stats, f1_stats, cm = results
+    println("    F1: $(round(f1_stats[1]*100, digits=2))% ± $(round(f1_stats[2]*100, digits=2))%")
+    push!(ann_results_50, (topology, f1_stats[1], results))
+end
+
+sorted_ann_results_50 = sort(ann_results_50, by=x->x[2], rev=true)
+best_topology_ann_50 = sorted_ann_results_50[1][1]
+best_f1_ann_50 = sorted_ann_results_50[1][2]
+println("\n✨ Best ANN (Approach 2): $best_topology_ann_50 (CV F1: $(round(best_f1_ann_50*100, digits=2))%)")
+
+# Train final ANN (Approach 2)
+train_targets_onehot_50 = oneHotEncoding(train_targets_50)
+test_targets_onehot_50 = oneHotEncoding(test_targets_50)
+normParams_ann_50 = calculateMinMaxNormalizationParameters(train_inputs_50)
+train_inputs_norm_50 = normalizeMinMax(train_inputs_50, normParams_ann_50)
+test_inputs_norm_50 = normalizeMinMax(test_inputs_50, normParams_ann_50)
+
+N_train_50_val = size(train_inputs_norm_50, 1)
+(train_idx_50, val_idx_50) = holdOut(N_train_50_val, 0.1)
+
+final_ann_50, _ = trainClassANN(best_topology_ann_50,
+    (train_inputs_norm_50[train_idx_50, :], train_targets_onehot_50[train_idx_50, :]),
+    validationDataset=(train_inputs_norm_50[val_idx_50, :], train_targets_onehot_50[val_idx_50, :]),
+    testDataset=(test_inputs_norm_50, test_targets_onehot_50),
+    maxEpochs=800, learningRate=0.003, maxEpochsVal=25)
+
+test_outputs_ann_50 = final_ann_50(test_inputs_norm_50')'
+cm_results_ann_50 = confusionMatrix(test_outputs_ann_50, test_targets_onehot_50; weighted=true)
+println("\n📊 ANN TEST SET RESULTS (Approach 2): F1=$(round(cm_results_ann_50.aggregated.f1*100, digits=2))%, Acc=$(round(cm_results_ann_50.accuracy*100, digits=2))%")
+
+# ============================================================================
+# APPROACH 2: SVM (8 configurations)
+# ============================================================================
+println("\n" * "="^70)
+println("🔬 APPROACH 2 - EXPERIMENT 2: SUPPORT VECTOR MACHINES")
+println("Testing 8 SVM Configurations")
+println("="^70)
+
+svm_results_50 = []
+for (i, (kernel, C, gamma, degree, desc)) in enumerate(svm_configs)
+    println("\n[$i/8] Testing: $desc")
+    hyperparams = Dict("kernel" => kernel, "C" => C, "gamma" => gamma, "degree" => degree)
+    results = modelCrossValidation(:SVC, hyperparams, (train_inputs_50, train_targets_50), cv_indices_50)
+    acc_stats, err_stats, sens_stats, spec_stats, ppv_stats, npv_stats, f1_stats, cm = results
+    println("    F1: $(round(f1_stats[1]*100, digits=2))% ± $(round(f1_stats[2]*100, digits=2))%")
+    push!(svm_results_50, (desc, f1_stats[1], kernel, C, gamma, degree, results))
+end
+
+sorted_svm_results_50 = sort(svm_results_50, by=x->x[2], rev=true)
+best_svm_50 = sorted_svm_results_50[1]
+best_desc_svm_50, best_f1_svm_50, best_kernel_svm_50, best_C_svm_50, best_gamma_svm_50, best_degree_svm_50 = best_svm_50[1:6]
+println("\n✨ Best SVM (Approach 2): $best_desc_svm_50 (CV F1: $(round(best_f1_svm_50*100, digits=2))%)")
+
+# Train final SVM (Approach 2)
+train_inputs_norm_svm_50 = normalizeMinMax(train_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
+test_inputs_norm_svm_50 = normalizeMinMax(test_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
+train_targets_str_50 = string.(train_targets_50)
+test_targets_str_50 = string.(test_targets_50)
+classes_50 = sort(unique(train_targets_str_50))
+
+if best_kernel_svm_50 == "linear"
+    kernel_func_50 = LIBSVM.Kernel.Linear
+elseif best_kernel_svm_50 == "poly"
+    kernel_func_50 = LIBSVM.Kernel.Polynomial
+else
+    kernel_func_50 = LIBSVM.Kernel.RadialBasis
+end
+
+model_svm_50 = SVMClassifier(kernel=kernel_func_50, cost=best_C_svm_50, gamma=best_gamma_svm_50, degree=Int32(best_degree_svm_50))
+mach_svm_50 = machine(model_svm_50, MLJ.table(train_inputs_norm_svm_50), categorical(train_targets_str_50))
+MLJ.fit!(mach_svm_50, verbosity=0)
+svm_predictions_50 = MLJ.predict(mach_svm_50, MLJ.table(test_inputs_norm_svm_50))
+cm_results_svm_50 = confusionMatrix(svm_predictions_50, test_targets_str_50, classes_50; weighted=true)
+println("📊 SVM TEST SET RESULTS (Approach 2): F1=$(round(cm_results_svm_50.aggregated.f1*100, digits=2))%, Acc=$(round(cm_results_svm_50.accuracy*100, digits=2))%")
+
+# ============================================================================
+# APPROACH 2: Decision Trees (6 depths)
+# ============================================================================
+println("\n" * "="^70)
+println("🔬 APPROACH 2 - EXPERIMENT 3: DECISION TREES")
+println("Testing 6 Maximum Depths")
+println("="^70)
+
+tree_results_50 = []
+for (i, max_depth) in enumerate(tree_depths)
+    depth_str = max_depth == -1 ? "Unlimited" : string(max_depth)
+    println("\n[$i/6] Testing: Depth=$depth_str")
+    hyperparams = Dict("max_depth" => max_depth)
+    results = modelCrossValidation(:DecisionTreeClassifier, hyperparams, (train_inputs_50, train_targets_50), cv_indices_50)
+    acc_stats, err_stats, sens_stats, spec_stats, ppv_stats, npv_stats, f1_stats, cm = results
+    println("    F1: $(round(f1_stats[1]*100, digits=2))% ± $(round(f1_stats[2]*100, digits=2))%")
+    push!(tree_results_50, (depth_str, max_depth, f1_stats[1], results))
+end
+
+sorted_tree_results_50 = sort(tree_results_50, by=x->x[3], rev=true)
+best_desc_tree_50, best_max_depth_tree_50, best_f1_tree_50 = sorted_tree_results_50[1][1:3]
+println("\n✨ Best Tree (Approach 2): Depth=$best_desc_tree_50 (CV F1: $(round(best_f1_tree_50*100, digits=2))%)")
+
+# Train final Decision Tree (Approach 2)
+train_inputs_norm_tree_50 = normalizeMinMax(train_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
+test_inputs_norm_tree_50 = normalizeMinMax(test_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
+train_targets_str_tree_50 = string.(train_targets_50)
+test_targets_str_tree_50 = string.(test_targets_50)
+
+if best_max_depth_tree_50 == -1
+    model_tree_50 = DTClassifier(rng=Random.MersenneTwister(42))
+else
+    model_tree_50 = DTClassifier(max_depth=best_max_depth_tree_50, rng=Random.MersenneTwister(42))
+end
+mach_tree_50 = machine(model_tree_50, MLJ.table(train_inputs_norm_tree_50), categorical(train_targets_str_tree_50))
+MLJ.fit!(mach_tree_50, verbosity=0)
+tree_predictions_50 = MLJ.predict(mach_tree_50, MLJ.table(test_inputs_norm_tree_50))
+tree_predictions_mode_50 = mode.(tree_predictions_50)
+cm_results_tree_50 = confusionMatrix(tree_predictions_mode_50, test_targets_str_tree_50, classes_50; weighted=true)
+println("📊 Decision Tree TEST SET RESULTS (Approach 2): F1=$(round(cm_results_tree_50.aggregated.f1*100, digits=2))%, Acc=$(round(cm_results_tree_50.accuracy*100, digits=2))%")
+
+# ============================================================================
+# APPROACH 2: kNN (6 k values)
+# ============================================================================
+println("\n" * "="^70)
+println("🔬 APPROACH 2 - EXPERIMENT 4: k-NEAREST NEIGHBORS")
+println("Testing 6 k Values")
+println("="^70)
+
+knn_results_50 = []
+for (i, k) in enumerate(k_values)
+    println("\n[$i/6] Testing: k=$k")
+    hyperparams = Dict("n_neighbors" => k)
+    results = modelCrossValidation(:KNeighborsClassifier, hyperparams, (train_inputs_50, train_targets_50), cv_indices_50)
+    acc_stats, err_stats, sens_stats, spec_stats, ppv_stats, npv_stats, f1_stats, cm = results
+    println("    F1: $(round(f1_stats[1]*100, digits=2))% ± $(round(f1_stats[2]*100, digits=2))%")
+    push!(knn_results_50, (k, f1_stats[1], results))
+end
+
+sorted_knn_results_50 = sort(knn_results_50, by=x->x[2], rev=true)
+best_k_knn_50, best_f1_knn_50 = sorted_knn_results_50[1][1:2]
+println("\n✨ Best kNN (Approach 2): k=$best_k_knn_50 (CV F1: $(round(best_f1_knn_50*100, digits=2))%)")
+
+# Train final kNN (Approach 2)
+train_inputs_norm_knn_50 = normalizeMinMax(train_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
+test_inputs_norm_knn_50 = normalizeMinMax(test_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
+train_targets_str_knn_50 = string.(train_targets_50)
+test_targets_str_knn_50 = string.(test_targets_50)
+
+model_knn_50 = kNNClassifier(K=best_k_knn_50)
+mach_knn_50 = machine(model_knn_50, MLJ.table(train_inputs_norm_knn_50), categorical(train_targets_str_knn_50))
+MLJ.fit!(mach_knn_50, verbosity=0)
+knn_predictions_50 = MLJ.predict(mach_knn_50, MLJ.table(test_inputs_norm_knn_50))
+knn_predictions_mode_50 = mode.(knn_predictions_50)
+cm_results_knn_50 = confusionMatrix(knn_predictions_mode_50, test_targets_str_knn_50, classes_50; weighted=true)
+println("📊 kNN TEST SET RESULTS (Approach 2): F1=$(round(cm_results_knn_50.aggregated.f1*100, digits=2))%, Acc=$(round(cm_results_knn_50.accuracy*100, digits=2))%")
+
+# ============================================================================
+# APPROACH 2: Ensemble Methods
+# ============================================================================
+println("\n" * "="^70)
+println("🔬 APPROACH 2 - EXPERIMENT 5: ENSEMBLE METHODS")
+println("Combining ANN + Decision Tree + kNN")
+println("="^70)
+
+ann_test_pred_str_50 = string.(argmax.(eachrow(test_outputs_ann_50)) .- 1)
+tree_test_pred_str_50 = string.(tree_predictions_mode_50)
+knn_test_pred_str_50 = string.(knn_predictions_mode_50)
+all_predictions_50 = [ann_test_pred_str_50, tree_test_pred_str_50, knn_test_pred_str_50]
+
+majority_predictions_50 = majorityVoting(all_predictions_50)
+cm_results_majority_50 = confusionMatrix(majority_predictions_50, test_targets_str_50, classes_50; weighted=true)
+println("✅ Majority Voting - F1: $(round(cm_results_majority_50.aggregated.f1*100, digits=2))%")
+
+cv_scores_50 = [best_f1_ann_50, best_f1_tree_50, best_f1_knn_50]
+weights_50 = cv_scores_50 ./ sum(cv_scores_50)
+weighted_predictions_50 = weightedVoting(all_predictions_50, weights_50)
+cm_results_weighted_50 = confusionMatrix(weighted_predictions_50, test_targets_str_50, classes_50; weighted=true)
+println("✅ Weighted Voting - F1: $(round(cm_results_weighted_50.aggregated.f1*100, digits=2))%")
+
+# Store Approach 2 results
+approach2_results = Dict(
+    "split" => "50/50",
+    "ann" => (best_topology_ann_50, cm_results_ann_50.aggregated.f1, cm_results_ann_50.accuracy),
+    "svm" => (best_desc_svm_50, cm_results_svm_50.aggregated.f1, cm_results_svm_50.accuracy),
+    "tree" => (best_desc_tree_50, cm_results_tree_50.aggregated.f1, cm_results_tree_50.accuracy),
+    "knn" => (best_k_knn_50, cm_results_knn_50.aggregated.f1, cm_results_knn_50.accuracy),
+    "ensemble_majority" => (cm_results_majority_50.aggregated.f1, cm_results_majority_50.accuracy),
+    "ensemble_weighted" => (cm_results_weighted_50.aggregated.f1, cm_results_weighted_50.accuracy)
+)
+
+# ############################################################################
+#
+#                         APPROACH 3: PCA + 80/20 SPLIT
+#
+# ############################################################################
+#
+# This approach applies Principal Component Analysis (PCA) for dimensionality
+# reduction before training the models. We keep enough components to explain
+# 95% of the variance.
+#
+# ############################################################################
+
+println("\n")
+println("="^80)
+println("="^80)
+println("                    APPROACH 3: PCA + 80/20 TRAIN/TEST SPLIT")
+println("="^80)
+println("="^80)
+
+# Re-seed for reproducibility
+Random.seed!(42)
+
+println("\n" * "="^70)
+println("✅ APPROACH 3: PCA DIMENSIONALITY REDUCTION")
+println("="^70)
+
+# Use the original 80/20 split data
+# First normalize the training data
+normParams_pca = calculateMinMaxNormalizationParameters(train_inputs)
+train_inputs_norm_pca = normalizeMinMax(train_inputs, normParams_pca)
+test_inputs_norm_pca = normalizeMinMax(test_inputs, normParams_pca)
+
+# Apply PCA to training data
+# Center the data
+train_mean = mean(train_inputs_norm_pca, dims=1)
+train_centered = train_inputs_norm_pca .- train_mean
+test_centered = test_inputs_norm_pca .- train_mean
+
+# Compute covariance matrix and eigendecomposition
+cov_matrix = (train_centered' * train_centered) / (size(train_centered, 1) - 1)
+eigenvalues, eigenvectors = eigen(cov_matrix)
+
+# Sort by eigenvalue (descending)
+sorted_indices = sortperm(eigenvalues, rev=true)
+eigenvalues = eigenvalues[sorted_indices]
+eigenvectors = eigenvectors[:, sorted_indices]
+
+# Determine number of components for 95% variance
+total_variance = sum(eigenvalues)
+explained_variance_ratio = eigenvalues ./ total_variance
+cumulative_variance = cumsum(explained_variance_ratio)
+
+n_components = findfirst(x -> x >= 0.95, cumulative_variance)
+if n_components === nothing
+    n_components = length(eigenvalues)
+end
+
+println("\n📊 PCA Analysis:")
+println("  Original features:       $(size(train_inputs, 2))")
+println("  Components for 95% var:  $n_components")
+println("  Variance explained:      $(round(cumulative_variance[n_components]*100, digits=2))%")
+
+# Project data onto principal components
+projection_matrix = eigenvectors[:, 1:n_components]
+train_inputs_pca = train_centered * projection_matrix
+test_inputs_pca = test_centered * projection_matrix
+
+println("  Reduced features:        $(size(train_inputs_pca, 2))")
+
+# Create cross-validation indices for PCA approach
+cv_indices_pca = crossvalidation(train_targets, k_folds)
+println("\n✅ Cross-validation indices created ($k_folds folds, stratified)")
+
+# ============================================================================
+# APPROACH 3: ANN with PCA (8 topologies)
+# ============================================================================
+println("\n" * "="^70)
+println("🔬 APPROACH 3 - EXPERIMENT 1: ARTIFICIAL NEURAL NETWORKS (PCA)")
+println("Testing 8 ANN Topologies")
+println("="^70)
+
+# Adjust topologies for reduced input dimension
+topologies_pca = [
+    [64],             # 1. 1 hidden layer
+    [32],             # 2. 1 hidden layer
+    [16],             # 3. 1 hidden layer
+    [8],              # 4. 1 hidden layer
+    [64, 32],         # 5. 2 hidden layers
+    [32, 16],         # 6. 2 hidden layers
+    [16, 8],          # 7. 2 hidden layers
+    [32, 8]           # 8. 2 hidden layers
+]
+
+ann_results_pca = []
+for (i, topology) in enumerate(topologies_pca)
+    println("\n[$i/8] Testing topology: $topology")
+    
+    hyperparams = Dict(
+        "topology" => topology,
+        "learningRate" => 0.003,
+        "validationRatio" => 0.1,
+        "numExecutions" => 1,
+        "maxEpochs" => 800,
+        "maxEpochsVal" => 25
+    )
+    
+    results = modelCrossValidation(:ANN, hyperparams, (train_inputs_pca, train_targets), cv_indices_pca)
+    acc_stats, err_stats, sens_stats, spec_stats, ppv_stats, npv_stats, f1_stats, cm = results
+    println("    F1: $(round(f1_stats[1]*100, digits=2))% ± $(round(f1_stats[2]*100, digits=2))%")
+    push!(ann_results_pca, (topology, f1_stats[1], results))
+end
+
+sorted_ann_results_pca = sort(ann_results_pca, by=x->x[2], rev=true)
+best_topology_ann_pca = sorted_ann_results_pca[1][1]
+best_f1_ann_pca = sorted_ann_results_pca[1][2]
+println("\n✨ Best ANN (PCA): $best_topology_ann_pca (CV F1: $(round(best_f1_ann_pca*100, digits=2))%)")
+
+# Train final ANN (PCA)
+train_targets_onehot_pca = oneHotEncoding(train_targets)
+test_targets_onehot_pca = oneHotEncoding(test_targets)
+
+N_train_pca = size(train_inputs_pca, 1)
+(train_idx_pca, val_idx_pca) = holdOut(N_train_pca, 0.1)
+
+final_ann_pca, _ = trainClassANN(best_topology_ann_pca,
+    (train_inputs_pca[train_idx_pca, :], train_targets_onehot_pca[train_idx_pca, :]),
+    validationDataset=(train_inputs_pca[val_idx_pca, :], train_targets_onehot_pca[val_idx_pca, :]),
+    testDataset=(test_inputs_pca, test_targets_onehot_pca),
+    maxEpochs=800, learningRate=0.003, maxEpochsVal=25)
+
+test_outputs_ann_pca = final_ann_pca(test_inputs_pca')'
+cm_results_ann_pca = confusionMatrix(test_outputs_ann_pca, test_targets_onehot_pca; weighted=true)
+println("\n📊 ANN TEST SET RESULTS (PCA): F1=$(round(cm_results_ann_pca.aggregated.f1*100, digits=2))%, Acc=$(round(cm_results_ann_pca.accuracy*100, digits=2))%")
+
+# ============================================================================
+# APPROACH 3: SVM with PCA (8 configurations)
+# ============================================================================
+println("\n" * "="^70)
+println("🔬 APPROACH 3 - EXPERIMENT 2: SUPPORT VECTOR MACHINES (PCA)")
+println("Testing 8 SVM Configurations")
+println("="^70)
+
+svm_results_pca = []
+for (i, (kernel, C, gamma, degree, desc)) in enumerate(svm_configs)
+    println("\n[$i/8] Testing: $desc")
+    hyperparams = Dict("kernel" => kernel, "C" => C, "gamma" => gamma, "degree" => degree)
+    results = modelCrossValidation(:SVC, hyperparams, (train_inputs_pca, train_targets), cv_indices_pca)
+    acc_stats, err_stats, sens_stats, spec_stats, ppv_stats, npv_stats, f1_stats, cm = results
+    println("    F1: $(round(f1_stats[1]*100, digits=2))% ± $(round(f1_stats[2]*100, digits=2))%")
+    push!(svm_results_pca, (desc, f1_stats[1], kernel, C, gamma, degree, results))
+end
+
+sorted_svm_results_pca = sort(svm_results_pca, by=x->x[2], rev=true)
+best_svm_pca = sorted_svm_results_pca[1]
+best_desc_svm_pca, best_f1_svm_pca, best_kernel_svm_pca, best_C_svm_pca, best_gamma_svm_pca, best_degree_svm_pca = best_svm_pca[1:6]
+println("\n✨ Best SVM (PCA): $best_desc_svm_pca (CV F1: $(round(best_f1_svm_pca*100, digits=2))%)")
+
+# Train final SVM (PCA)
+train_targets_str_pca = string.(train_targets)
+test_targets_str_pca = string.(test_targets)
+classes_pca = sort(unique(train_targets_str_pca))
+
+if best_kernel_svm_pca == "linear"
+    kernel_func_pca = LIBSVM.Kernel.Linear
+elseif best_kernel_svm_pca == "poly"
+    kernel_func_pca = LIBSVM.Kernel.Polynomial
+else
+    kernel_func_pca = LIBSVM.Kernel.RadialBasis
+end
+
+model_svm_pca = SVMClassifier(kernel=kernel_func_pca, cost=best_C_svm_pca, gamma=best_gamma_svm_pca, degree=Int32(best_degree_svm_pca))
+mach_svm_pca = machine(model_svm_pca, MLJ.table(train_inputs_pca), categorical(train_targets_str_pca))
+MLJ.fit!(mach_svm_pca, verbosity=0)
+svm_predictions_pca = MLJ.predict(mach_svm_pca, MLJ.table(test_inputs_pca))
+cm_results_svm_pca = confusionMatrix(svm_predictions_pca, test_targets_str_pca, classes_pca; weighted=true)
+println("📊 SVM TEST SET RESULTS (PCA): F1=$(round(cm_results_svm_pca.aggregated.f1*100, digits=2))%, Acc=$(round(cm_results_svm_pca.accuracy*100, digits=2))%")
+
+# ============================================================================
+# APPROACH 3: Decision Trees with PCA (6 depths)
+# ============================================================================
+println("\n" * "="^70)
+println("🔬 APPROACH 3 - EXPERIMENT 3: DECISION TREES (PCA)")
+println("Testing 6 Maximum Depths")
+println("="^70)
+
+tree_results_pca = []
+for (i, max_depth) in enumerate(tree_depths)
+    depth_str = max_depth == -1 ? "Unlimited" : string(max_depth)
+    println("\n[$i/6] Testing: Depth=$depth_str")
+    hyperparams = Dict("max_depth" => max_depth)
+    results = modelCrossValidation(:DecisionTreeClassifier, hyperparams, (train_inputs_pca, train_targets), cv_indices_pca)
+    acc_stats, err_stats, sens_stats, spec_stats, ppv_stats, npv_stats, f1_stats, cm = results
+    println("    F1: $(round(f1_stats[1]*100, digits=2))% ± $(round(f1_stats[2]*100, digits=2))%")
+    push!(tree_results_pca, (depth_str, max_depth, f1_stats[1], results))
+end
+
+sorted_tree_results_pca = sort(tree_results_pca, by=x->x[3], rev=true)
+best_desc_tree_pca, best_max_depth_tree_pca, best_f1_tree_pca = sorted_tree_results_pca[1][1:3]
+println("\n✨ Best Tree (PCA): Depth=$best_desc_tree_pca (CV F1: $(round(best_f1_tree_pca*100, digits=2))%)")
+
+# Train final Decision Tree (PCA)
+train_targets_str_tree_pca = string.(train_targets)
+test_targets_str_tree_pca = string.(test_targets)
+
+if best_max_depth_tree_pca == -1
+    model_tree_pca = DTClassifier(rng=Random.MersenneTwister(42))
+else
+    model_tree_pca = DTClassifier(max_depth=best_max_depth_tree_pca, rng=Random.MersenneTwister(42))
+end
+mach_tree_pca = machine(model_tree_pca, MLJ.table(train_inputs_pca), categorical(train_targets_str_tree_pca))
+MLJ.fit!(mach_tree_pca, verbosity=0)
+tree_predictions_pca = MLJ.predict(mach_tree_pca, MLJ.table(test_inputs_pca))
+tree_predictions_mode_pca = mode.(tree_predictions_pca)
+cm_results_tree_pca = confusionMatrix(tree_predictions_mode_pca, test_targets_str_tree_pca, classes_pca; weighted=true)
+println("📊 Decision Tree TEST SET RESULTS (PCA): F1=$(round(cm_results_tree_pca.aggregated.f1*100, digits=2))%, Acc=$(round(cm_results_tree_pca.accuracy*100, digits=2))%")
+
+# ============================================================================
+# APPROACH 3: kNN with PCA (6 k values)
+# ============================================================================
+println("\n" * "="^70)
+println("🔬 APPROACH 3 - EXPERIMENT 4: k-NEAREST NEIGHBORS (PCA)")
+println("Testing 6 k Values")
+println("="^70)
+
+knn_results_pca = []
+for (i, k) in enumerate(k_values)
+    println("\n[$i/6] Testing: k=$k")
+    hyperparams = Dict("n_neighbors" => k)
+    results = modelCrossValidation(:KNeighborsClassifier, hyperparams, (train_inputs_pca, train_targets), cv_indices_pca)
+    acc_stats, err_stats, sens_stats, spec_stats, ppv_stats, npv_stats, f1_stats, cm = results
+    println("    F1: $(round(f1_stats[1]*100, digits=2))% ± $(round(f1_stats[2]*100, digits=2))%")
+    push!(knn_results_pca, (k, f1_stats[1], results))
+end
+
+sorted_knn_results_pca = sort(knn_results_pca, by=x->x[2], rev=true)
+best_k_knn_pca, best_f1_knn_pca = sorted_knn_results_pca[1][1:2]
+println("\n✨ Best kNN (PCA): k=$best_k_knn_pca (CV F1: $(round(best_f1_knn_pca*100, digits=2))%)")
+
+# Train final kNN (PCA)
+train_targets_str_knn_pca = string.(train_targets)
+test_targets_str_knn_pca = string.(test_targets)
+
+model_knn_pca = kNNClassifier(K=best_k_knn_pca)
+mach_knn_pca = machine(model_knn_pca, MLJ.table(train_inputs_pca), categorical(train_targets_str_knn_pca))
+MLJ.fit!(mach_knn_pca, verbosity=0)
+knn_predictions_pca = MLJ.predict(mach_knn_pca, MLJ.table(test_inputs_pca))
+knn_predictions_mode_pca = mode.(knn_predictions_pca)
+cm_results_knn_pca = confusionMatrix(knn_predictions_mode_pca, test_targets_str_knn_pca, classes_pca; weighted=true)
+println("📊 kNN TEST SET RESULTS (PCA): F1=$(round(cm_results_knn_pca.aggregated.f1*100, digits=2))%, Acc=$(round(cm_results_knn_pca.accuracy*100, digits=2))%")
+
+# ============================================================================
+# APPROACH 3: Ensemble Methods with PCA
+# ============================================================================
+println("\n" * "="^70)
+println("🔬 APPROACH 3 - EXPERIMENT 5: ENSEMBLE METHODS (PCA)")
+println("Combining ANN + Decision Tree + kNN")
+println("="^70)
+
+ann_test_pred_str_pca = string.(argmax.(eachrow(test_outputs_ann_pca)) .- 1)
+tree_test_pred_str_pca = string.(tree_predictions_mode_pca)
+knn_test_pred_str_pca = string.(knn_predictions_mode_pca)
+all_predictions_pca = [ann_test_pred_str_pca, tree_test_pred_str_pca, knn_test_pred_str_pca]
+
+majority_predictions_pca = majorityVoting(all_predictions_pca)
+cm_results_majority_pca = confusionMatrix(majority_predictions_pca, test_targets_str_pca, classes_pca; weighted=true)
+println("✅ Majority Voting - F1: $(round(cm_results_majority_pca.aggregated.f1*100, digits=2))%")
+
+cv_scores_pca = [best_f1_ann_pca, best_f1_tree_pca, best_f1_knn_pca]
+weights_pca = cv_scores_pca ./ sum(cv_scores_pca)
+weighted_predictions_pca = weightedVoting(all_predictions_pca, weights_pca)
+cm_results_weighted_pca = confusionMatrix(weighted_predictions_pca, test_targets_str_pca, classes_pca; weighted=true)
+println("✅ Weighted Voting - F1: $(round(cm_results_weighted_pca.aggregated.f1*100, digits=2))%")
+
+# Store Approach 3 results
+approach3_results = Dict(
+    "split" => "80/20 + PCA",
+    "n_components" => n_components,
+    "variance_explained" => cumulative_variance[n_components],
+    "ann" => (best_topology_ann_pca, cm_results_ann_pca.aggregated.f1, cm_results_ann_pca.accuracy),
+    "svm" => (best_desc_svm_pca, cm_results_svm_pca.aggregated.f1, cm_results_svm_pca.accuracy),
+    "tree" => (best_desc_tree_pca, cm_results_tree_pca.aggregated.f1, cm_results_tree_pca.accuracy),
+    "knn" => (best_k_knn_pca, cm_results_knn_pca.aggregated.f1, cm_results_knn_pca.accuracy),
+    "ensemble_majority" => (cm_results_majority_pca.aggregated.f1, cm_results_majority_pca.accuracy),
+    "ensemble_weighted" => (cm_results_weighted_pca.aggregated.f1, cm_results_weighted_pca.accuracy)
+)
+
+# ############################################################################
+#
+#                    FINAL SUMMARY - ALL APPROACHES
+#
+# ############################################################################
+
+println("\n")
+println("="^80)
+println("="^80)
+println("                         FINAL SUMMARY - ALL APPROACHES")
+println("="^80)
+println("="^80)
+
+println("\n" * "="^70)
+println("📊 COMPARISON OF ALL 3 APPROACHES")
+println("="^70)
+
+println("\n🏆 APPROACH 1: 80/20 SPLIT (Original)")
+println("-"^70)
+println("  ANN ($best_topology_ann):     F1=$(round(approach1_results["ann"][2]*100, digits=2))%, Acc=$(round(approach1_results["ann"][3]*100, digits=2))%")
+println("  SVM ($best_desc_svm):         F1=$(round(approach1_results["svm"][2]*100, digits=2))%, Acc=$(round(approach1_results["svm"][3]*100, digits=2))%")
+println("  Decision Tree (d=$best_desc_tree): F1=$(round(approach1_results["tree"][2]*100, digits=2))%, Acc=$(round(approach1_results["tree"][3]*100, digits=2))%")
+println("  kNN (k=$best_k_knn):          F1=$(round(approach1_results["knn"][2]*100, digits=2))%, Acc=$(round(approach1_results["knn"][3]*100, digits=2))%")
+println("  Ensemble Majority:            F1=$(round(approach1_results["ensemble_majority"][1]*100, digits=2))%, Acc=$(round(approach1_results["ensemble_majority"][2]*100, digits=2))%")
+println("  Ensemble Weighted:            F1=$(round(approach1_results["ensemble_weighted"][1]*100, digits=2))%, Acc=$(round(approach1_results["ensemble_weighted"][2]*100, digits=2))%")
+
+println("\n🏆 APPROACH 2: 50/50 SPLIT")
+println("-"^70)
+println("  ANN ($best_topology_ann_50):     F1=$(round(approach2_results["ann"][2]*100, digits=2))%, Acc=$(round(approach2_results["ann"][3]*100, digits=2))%")
+println("  SVM ($best_desc_svm_50):         F1=$(round(approach2_results["svm"][2]*100, digits=2))%, Acc=$(round(approach2_results["svm"][3]*100, digits=2))%")
+println("  Decision Tree (d=$best_desc_tree_50): F1=$(round(approach2_results["tree"][2]*100, digits=2))%, Acc=$(round(approach2_results["tree"][3]*100, digits=2))%")
+println("  kNN (k=$best_k_knn_50):          F1=$(round(approach2_results["knn"][2]*100, digits=2))%, Acc=$(round(approach2_results["knn"][3]*100, digits=2))%")
+println("  Ensemble Majority:               F1=$(round(approach2_results["ensemble_majority"][1]*100, digits=2))%, Acc=$(round(approach2_results["ensemble_majority"][2]*100, digits=2))%")
+println("  Ensemble Weighted:               F1=$(round(approach2_results["ensemble_weighted"][1]*100, digits=2))%, Acc=$(round(approach2_results["ensemble_weighted"][2]*100, digits=2))%")
+
+println("\n🏆 APPROACH 3: PCA + 80/20 SPLIT ($n_components components, $(round(cumulative_variance[n_components]*100, digits=1))% variance)")
+println("-"^70)
+println("  ANN ($best_topology_ann_pca):     F1=$(round(approach3_results["ann"][2]*100, digits=2))%, Acc=$(round(approach3_results["ann"][3]*100, digits=2))%")
+println("  SVM ($best_desc_svm_pca):         F1=$(round(approach3_results["svm"][2]*100, digits=2))%, Acc=$(round(approach3_results["svm"][3]*100, digits=2))%")
+println("  Decision Tree (d=$best_desc_tree_pca): F1=$(round(approach3_results["tree"][2]*100, digits=2))%, Acc=$(round(approach3_results["tree"][3]*100, digits=2))%")
+println("  kNN (k=$best_k_knn_pca):          F1=$(round(approach3_results["knn"][2]*100, digits=2))%, Acc=$(round(approach3_results["knn"][3]*100, digits=2))%")
+println("  Ensemble Majority:                 F1=$(round(approach3_results["ensemble_majority"][1]*100, digits=2))%, Acc=$(round(approach3_results["ensemble_majority"][2]*100, digits=2))%")
+println("  Ensemble Weighted:                 F1=$(round(approach3_results["ensemble_weighted"][1]*100, digits=2))%, Acc=$(round(approach3_results["ensemble_weighted"][2]*100, digits=2))%")
+
+# Determine best overall across all approaches
+all_results = [
+    ("Approach 1 - ANN", approach1_results["ann"][2]),
+    ("Approach 1 - SVM", approach1_results["svm"][2]),
+    ("Approach 1 - Tree", approach1_results["tree"][2]),
+    ("Approach 1 - kNN", approach1_results["knn"][2]),
+    ("Approach 1 - Ensemble Majority", approach1_results["ensemble_majority"][1]),
+    ("Approach 1 - Ensemble Weighted", approach1_results["ensemble_weighted"][1]),
+    ("Approach 2 - ANN", approach2_results["ann"][2]),
+    ("Approach 2 - SVM", approach2_results["svm"][2]),
+    ("Approach 2 - Tree", approach2_results["tree"][2]),
+    ("Approach 2 - kNN", approach2_results["knn"][2]),
+    ("Approach 2 - Ensemble Majority", approach2_results["ensemble_majority"][1]),
+    ("Approach 2 - Ensemble Weighted", approach2_results["ensemble_weighted"][1]),
+    ("Approach 3 - ANN (PCA)", approach3_results["ann"][2]),
+    ("Approach 3 - SVM (PCA)", approach3_results["svm"][2]),
+    ("Approach 3 - Tree (PCA)", approach3_results["tree"][2]),
+    ("Approach 3 - kNN (PCA)", approach3_results["knn"][2]),
+    ("Approach 3 - Ensemble Majority (PCA)", approach3_results["ensemble_majority"][1]),
+    ("Approach 3 - Ensemble Weighted (PCA)", approach3_results["ensemble_weighted"][1])
+]
+
+best_overall_all = sort(all_results, by=x->x[2], rev=true)[1]
+
+println("\n" * "="^70)
+println("🎯 BEST OVERALL MODEL ACROSS ALL APPROACHES")
+println("="^70)
+println("  $(best_overall_all[1])")
+println("  Test F1 Score: $(round(best_overall_all[2]*100, digits=2))%")
 
 println("\n" * "="^70)
 println("✅ ALL EXPERIMENTS COMPLETE!")
 println("="^70)
 println("\n📋 SUMMARY:")
-println("  ✅ Tested 4 ML algorithms using modelCrossValidation from course utils")
-println("  ✅ ANN: 8 topologies tested")
-println("  ✅ SVM: 10 configurations tested")
-println("  ✅ Decision Tree: 7 depths tested")
-println("  ✅ kNN: 6 k values tested")
-println("  ✅ Created 2 ensemble methods")
-println("  ✅ Proper Train/Test split (80/20) - no data leakage")
+println("  ✅ 3 Different Approaches tested (as required):")
+println("     - Approach 1: Real dataset with 80/20 split")
+println("     - Approach 2: Real dataset with 50/50 split")
+println("     - Approach 3: PCA dimensionality reduction + 80/20 split")
+println("  ✅ For each approach, tested 4 ML algorithms:")
+println("     - ANN: 8 topologies (1-2 hidden layers)")
+println("     - SVM: 8 configurations (different kernels and C values)")
+println("     - Decision Tree: 6 maximum depths")
+println("     - kNN: 6 different k values")
+println("  ✅ Ensemble methods combining 3 models (ANN + Tree + kNN):")
+println("     - Majority Voting")
+println("     - Weighted Voting")
+println("  ✅ Proper Train/Test split - no data leakage")
 println("  ✅ 3-fold stratified cross-validation for model selection")
 println("  ✅ Random seed (42) set for reproducibility")
-println("  ✅ All code follows course methodology")
+println("  ✅ Confusion matrices for all evaluations")
+println("  ✅ All code follows course methodology using modelCrossValidation")
 println("="^70)
