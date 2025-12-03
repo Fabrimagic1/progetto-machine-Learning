@@ -420,9 +420,9 @@ println("\n🚀 Training final SVM on full training set...")
 using MLJ
 SVMClassifier = @load SVC pkg=LIBSVM
 
-# Normalize
-train_inputs_norm_svm = normalizeMinMax(train_inputs, calculateMinMaxNormalizationParameters(train_inputs))
-test_inputs_norm_svm = normalizeMinMax(test_inputs, calculateMinMaxNormalizationParameters(train_inputs))
+# Normalize (reuse parameters from ANN normalization)
+train_inputs_norm_svm = normalizeMinMax(train_inputs, normParams_ann)
+test_inputs_norm_svm = normalizeMinMax(test_inputs, normParams_ann)
 
 # Convert to strings for MLJ
 train_targets_str = string.(train_targets)
@@ -520,8 +520,9 @@ println("\n🚀 Training final Decision Tree on full training set...")
 
 DTClassifier = @load DecisionTreeClassifier pkg=DecisionTree
 
-train_inputs_norm_tree = normalizeMinMax(train_inputs, calculateMinMaxNormalizationParameters(train_inputs))
-test_inputs_norm_tree = normalizeMinMax(test_inputs, calculateMinMaxNormalizationParameters(train_inputs))
+# Reuse normalization parameters from ANN
+train_inputs_norm_tree = normalizeMinMax(train_inputs, normParams_ann)
+test_inputs_norm_tree = normalizeMinMax(test_inputs, normParams_ann)
 
 train_targets_str_tree = string.(train_targets)
 test_targets_str_tree = string.(test_targets)
@@ -606,8 +607,9 @@ println("\n🚀 Preparing final kNN...")
 
 kNNClassifier = @load KNNClassifier pkg=NearestNeighborModels
 
-train_inputs_norm_knn = normalizeMinMax(train_inputs, calculateMinMaxNormalizationParameters(train_inputs))
-test_inputs_norm_knn = normalizeMinMax(test_inputs, calculateMinMaxNormalizationParameters(train_inputs))
+# Reuse normalization parameters from ANN
+train_inputs_norm_knn = normalizeMinMax(train_inputs, normParams_ann)
+test_inputs_norm_knn = normalizeMinMax(test_inputs, normParams_ann)
 
 train_targets_str_knn = string.(train_targets)
 test_targets_str_knn = string.(test_targets)
@@ -892,9 +894,9 @@ best_svm_50 = sorted_svm_results_50[1]
 best_desc_svm_50, best_f1_svm_50, best_kernel_svm_50, best_C_svm_50, best_gamma_svm_50, best_degree_svm_50 = best_svm_50[1:6]
 println("\n✨ Best SVM (Approach 2): $best_desc_svm_50 (CV F1: $(round(best_f1_svm_50*100, digits=2))%)")
 
-# Train final SVM (Approach 2)
-train_inputs_norm_svm_50 = normalizeMinMax(train_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
-test_inputs_norm_svm_50 = normalizeMinMax(test_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
+# Train final SVM (Approach 2) - reuse normalization parameters from ANN
+train_inputs_norm_svm_50 = normalizeMinMax(train_inputs_50, normParams_ann_50)
+test_inputs_norm_svm_50 = normalizeMinMax(test_inputs_50, normParams_ann_50)
 train_targets_str_50 = string.(train_targets_50)
 test_targets_str_50 = string.(test_targets_50)
 classes_50 = sort(unique(train_targets_str_50))
@@ -937,9 +939,9 @@ sorted_tree_results_50 = sort(tree_results_50, by=x->x[3], rev=true)
 best_desc_tree_50, best_max_depth_tree_50, best_f1_tree_50 = sorted_tree_results_50[1][1:3]
 println("\n✨ Best Tree (Approach 2): Depth=$best_desc_tree_50 (CV F1: $(round(best_f1_tree_50*100, digits=2))%)")
 
-# Train final Decision Tree (Approach 2)
-train_inputs_norm_tree_50 = normalizeMinMax(train_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
-test_inputs_norm_tree_50 = normalizeMinMax(test_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
+# Train final Decision Tree (Approach 2) - reuse normalization parameters from ANN
+train_inputs_norm_tree_50 = normalizeMinMax(train_inputs_50, normParams_ann_50)
+test_inputs_norm_tree_50 = normalizeMinMax(test_inputs_50, normParams_ann_50)
 train_targets_str_tree_50 = string.(train_targets_50)
 test_targets_str_tree_50 = string.(test_targets_50)
 
@@ -977,9 +979,9 @@ sorted_knn_results_50 = sort(knn_results_50, by=x->x[2], rev=true)
 best_k_knn_50, best_f1_knn_50 = sorted_knn_results_50[1][1:2]
 println("\n✨ Best kNN (Approach 2): k=$best_k_knn_50 (CV F1: $(round(best_f1_knn_50*100, digits=2))%)")
 
-# Train final kNN (Approach 2)
-train_inputs_norm_knn_50 = normalizeMinMax(train_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
-test_inputs_norm_knn_50 = normalizeMinMax(test_inputs_50, calculateMinMaxNormalizationParameters(train_inputs_50))
+# Train final kNN (Approach 2) - reuse normalization parameters from ANN
+train_inputs_norm_knn_50 = normalizeMinMax(train_inputs_50, normParams_ann_50)
+test_inputs_norm_knn_50 = normalizeMinMax(test_inputs_50, normParams_ann_50)
 train_targets_str_knn_50 = string.(train_targets_50)
 test_targets_str_knn_50 = string.(test_targets_50)
 
