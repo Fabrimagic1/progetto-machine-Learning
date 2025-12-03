@@ -1,1 +1,13 @@
-/datasets/
+# Data files (too large for git)
+/datasets/*.csv
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Julia compiled files
+*.jl.cov
+*.jl.mem
+
+# Editor files
+*.swp
+*~
