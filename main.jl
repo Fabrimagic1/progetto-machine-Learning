@@ -347,14 +347,14 @@ printConfusionMatrix(test_outputs_ann, test_targets_onehot; weighted=true)
 # Configuration:
 #   - 8 configurations tested (as required by assignment)
 #   - Kernels: Linear, RBF, Polynomial
-#   - Hyperparameter C: 0.1, 1.0, 10.0
+#   - Hyperparameter C: 1.0, 10.0
 #   - Gamma (RBF): auto (1/n_features = 0.125)
 #   - Degree (Polynomial): 2, 3
 #
 # Configurations:
 #   1-2. Linear (C = 1.0, 10.0)
 #   3-5. RBF with different C values (C = 0.1, 1.0, 10.0)
-#   6-8. Polynomial with different degrees (deg = 2, 3)
+#   6-8. Polynomial with different C values and degrees
 #
 # ============================================================================
 
@@ -1057,38 +1057,37 @@ normParams_pca = calculateMinMaxNormalizationParameters(train_inputs)
 train_inputs_norm_pca = normalizeMinMax(train_inputs, normParams_pca)
 test_inputs_norm_pca = normalizeMinMax(test_inputs, normParams_pca)
 
-# Apply PCA to training data
+# Apply PCA to training data using SVD for better numerical stability
 # Center the data
 train_mean = mean(train_inputs_norm_pca, dims=1)
 train_centered = train_inputs_norm_pca .- train_mean
 test_centered = test_inputs_norm_pca .- train_mean
 
-# Compute covariance matrix and eigendecomposition
-cov_matrix = (train_centered' * train_centered) / (size(train_centered, 1) - 1)
-eigenvalues, eigenvectors = eigen(cov_matrix)
+# Use SVD for PCA (more numerically stable than eigendecomposition)
+# X = USV', where V contains the principal components
+U, s, V = svd(train_centered)
 
-# Sort by eigenvalue (descending)
-sorted_indices = sortperm(eigenvalues, rev=true)
-eigenvalues = eigenvalues[sorted_indices]
-eigenvectors = eigenvectors[:, sorted_indices]
-
-# Determine number of components for 95% variance
+# Variance explained by each component (singular values squared / (n-1))
+eigenvalues = (s .^ 2) ./ (size(train_centered, 1) - 1)
 total_variance = sum(eigenvalues)
 explained_variance_ratio = eigenvalues ./ total_variance
 cumulative_variance = cumsum(explained_variance_ratio)
 
+# Determine number of components for 95% variance
 n_components = findfirst(x -> x >= 0.95, cumulative_variance)
 if n_components === nothing
-    n_components = length(eigenvalues)
+    # Limit to maximum half the features if 95% threshold not reached
+    n_components = min(length(eigenvalues), div(size(train_inputs, 2), 2))
+    @warn "95% variance threshold not reached. Using $n_components components instead."
 end
 
-println("\n📊 PCA Analysis:")
+println("\n📊 PCA Analysis (using SVD for numerical stability):")
 println("  Original features:       $(size(train_inputs, 2))")
 println("  Components for 95% var:  $n_components")
 println("  Variance explained:      $(round(cumulative_variance[n_components]*100, digits=2))%")
 
-# Project data onto principal components
-projection_matrix = eigenvectors[:, 1:n_components]
+# Project data onto principal components (V contains the right singular vectors)
+projection_matrix = V[:, 1:n_components]
 train_inputs_pca = train_centered * projection_matrix
 test_inputs_pca = test_centered * projection_matrix
 
