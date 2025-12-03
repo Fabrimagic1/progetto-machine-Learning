@@ -231,14 +231,14 @@ println("Testing 8 ANN Topologies")
 println("="^70)
 
 topologies_to_test = [
-    [256, 128, 64],
-    [128, 64, 32],
-    [96, 48, 24],
-    [64, 32],
-    [128, 128, 64, 32],
-    [192, 96, 48],
-    [128, 64],
-    [256, 128]
+    [256],            # 1. 1 hidden layer - Large
+    [128],            # 2. 1 hidden layer - Medium
+    [64],             # 3. 1 hidden layer - Small
+    [32],             # 4. 1 hidden layer - Tiny
+    [256, 128],       # 5. 2 hidden layers - Large
+    [128, 64],        # 6. 2 hidden layers - Medium
+    [64, 32],         # 7. 2 hidden layers - Small
+    [96, 48]          # 8. 2 hidden layers - Alternative
 ]
 
 ann_results = []
