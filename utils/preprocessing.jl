@@ -4,55 +4,20 @@
 
 module PreprocessingUtils
 
-export oneHotEncoding, calculateMinMaxNormalizationParameters, normalizeMinMax, normalizeMinMax!
 export create_risk_classes, preprocess_multiclass
 
 using Dates
 using Statistics
 using StatsBase
-using DataFrames
-
-function oneHotEncoding(feature::AbstractArray{<:Any,1}, classes::AbstractArray{<:Any,1})
-    @assert(all([in(value, classes) for value in feature]))
-    numClasses = length(classes)
-    oneHot = falses(length(feature), numClasses)
-    for i in 1:numClasses
-        oneHot[:, i] .= (feature .== classes[i])
-    end
-    return oneHot
-end
-
-oneHotEncoding(feature::AbstractArray{<:Any,1}) = oneHotEncoding(feature, sort(unique(feature)))
-
-calculateMinMaxNormalizationParameters(dataset::AbstractArray{<:Real,2}) = 
-    (minimum(dataset, dims=1), maximum(dataset, dims=1))
-
-function normalizeMinMax!(dataset::AbstractArray{<:Real,2}, 
-                          normalizationParameters::NTuple{2, AbstractArray{<:Real,2}})
-    minValues, maxValues = normalizationParameters
-    dataset .-= minValues
-    range_vals = maxValues .- minValues
-    for j in 1:size(dataset, 2)
-        if range_vals[j] > 0
-            dataset[:, j] ./= range_vals[j]
-        else
-            dataset[:, j] .= 0
-        end
-    end
-    return dataset
-end
-
-normalizeMinMax(dataset::AbstractArray{<:Real,2}, normalizationParameters::NTuple{2, AbstractArray{<:Real,2}}) = 
-    normalizeMinMax!(copy(Float32.(dataset)), normalizationParameters)
+using DataFrames  
 
 function create_risk_classes(dataframe, target_col::String="Is Fraudulent")
     """
     Create 3 risk classes from binary fraud label + features
-    Returns: dataframe with Risk_Class column (0=Legit, 1=Suspect, 2=Fraud)
     """
     data = copy(dataframe)
     
-    println("\n Calculating risk signals...")
+    println("\n📊 Calculating risk signals...")
     
     # Time risk
     if "Transaction Date" in names(data)
@@ -87,12 +52,9 @@ function create_risk_classes(dataframe, target_col::String="Is Fraudulent")
     
     is_fraud = data[!, target_col] .== 1
     
-    # Class 2: FRAUDOLENT (clear fraud with multiple signals)
     data.Risk_Class[is_fraud .& (data.Total_Risk .>= 2)] .= 2
-    # Class 1: SOSPECT (suspicious - borderline cases)
     data.Risk_Class[is_fraud .& (data.Total_Risk .< 2)] .= 1
     data.Risk_Class[(.!is_fraud) .& (data.Total_Risk .>= 2)] .= 1
-    # Class 0: LEGIT (low risk)
     data.Risk_Class[(.!is_fraud) .& (data.Total_Risk .< 2)] .= 0
     
     println("\n✅ 3-Class distribution:")
